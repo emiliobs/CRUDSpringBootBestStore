@@ -5,6 +5,7 @@ import com.Emisoft.beststore.Models.ProductDto;
 import com.Emisoft.beststore.Services.ProductService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.Banner;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -124,5 +125,65 @@ public class ProductController
         }
 
         return "products/EditProduct";
+    }
+
+    @PostMapping("/edit")
+    public String updateProduct(Model model, @RequestParam long id,@Valid @ModelAttribute ProductDto productDto, BindingResult result)
+    {
+        try
+        {
+           Product product = productService.findById(id).get();
+           model.addAttribute("product", product);
+
+           if (result.hasErrors())
+           {
+               return "products/EditProduct";
+           }
+
+           if (!productDto.getImageFile().isEmpty())
+           {
+               //delete old image
+               String uploadDir = "public/images/";
+               Path oldImagePath = Paths.get(uploadDir + product.getImageFileName());
+
+               try
+               {
+                   Files.delete(oldImagePath);
+               }
+               catch (Exception ex)
+               {
+                   System.out.println("Exception: " + ex.getMessage());
+               }
+
+               // Save new Image file
+               MultipartFile image = productDto.getImageFile();
+               Date createdAt = new Date();
+               String storageFileName = createdAt.getTime() + "_" + image.getOriginalFilename();
+
+               try(InputStream inputStream = image.getInputStream())
+               {
+                   Files.copy(inputStream, Paths.get(uploadDir + storageFileName), StandardCopyOption.REPLACE_EXISTING);
+               }
+
+               product.setImageFileName(storageFileName);
+
+           }
+
+           product.setName(productDto.getName());
+           product.setBrand(productDto.getBrand());
+           product.setCategory(productDto.getCategory());
+           product.setPrice(productDto.getPrice());
+           product.setDescription(productDto.getDescription());
+
+           productService.save(product);
+
+
+        }
+        catch (Exception ex)
+        {
+            System.out.println("Exception: " + ex.getMessage());
+        }
+
+        return "redirect:/products";
     }
 }
